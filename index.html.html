@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小红书版权与免费字库快速预览</title>
+  <!-- 引入在线字体 -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;300;400;500;700;900&family=Noto+Serif+SC:wght@200;300;400;500;600;700;900&family=ZCOOL+KuaiLe&family=ZCOOL+QingKe+HuangYou&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+  <style>
+    /* 重置样式 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f1f2f3;
+    }
+
+    /* 头部样式 */
+    .header {
+      background-color: #000;
+      padding: 15px 0;
+      text-align: center;
+      color: #fff;
+    }
+
+    /* 搜索区域 */
+    .search-container {
+      max-width: 800px;
+      margin: 20px auto;
+      text-align: center;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 50px 10px 20px;
+      border-radius: 30px;
+      border: 1px solid #ddd;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .search-button {
+      position: absolute;
+      right: 0;
+      top: 0;
+      height: 100%;
+      background-color: #000;
+      color: white;
+      border: none;
+      border-radius: 0 30px 30px 0;
+      padding: 0 20px;
+      cursor: pointer;
+    }
+
+    .refresh-button {
+      position: absolute;
+      right: 70px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
+    }
+
+    /* 字体列表 */
+    .font-list-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px 40px;
+    }
+
+    .font-card {
+      background-color: white;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+
+    .font-header {
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f5f5f5;
+    }
+
+    .font-name {
+      font-size: 16px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .font-type {
+      color: #999;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+
+    .font-preview {
+      padding: 15px 20px;
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      word-break: break-all;
+    }
+
+    .download-button {
+      display: inline-block;
+      padding: 4px 12px;
+      background-color: #000;
+      color: #fff;
+      border-radius: 30px;
+      font-size: 12px;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    /* 字重选择器 */
+    .font-weight-selector {
+      display: flex;
+      padding: 0 15px 10px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .weight-option {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid #eee;
+      background: #f9f9f9;
+    }
+
+    .weight-option.active {
+      background-color: #000;
+      color: white;
+      border-color: #000;
+    }
+
+    /* 错误提示 */
+    .error {
+      background-color: #fee;
+      color: #c0392b;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+      .search-container {
+        padding: 0 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 头部 -->
+  <div class="header">
+    <h1>小红书版权与免费字库快速预览</h1>
+  </div>
+
+  <!-- 搜索区域 -->
+  <div class="search-container">
+    <input 
+      type="text" 
+      id="search-input" 
+      class="search-input" 
+      placeholder="输入预览文字"
+      value="输入预览文字"
+    >
+    <button class="refresh-button" id="refresh-button" title="简繁转换">简繁转换</button>
+    <button class="search-button" id="search-button">预览</button>
+  </div>
+
+  <!-- 字体列表 -->
+  <div class="font-list-container" id="font-list"></div>
+
+  <script>
+    // 防抖函数 - 避免频繁更新造成卡顿
+    function debounce(func, wait) {
+      let timeout;
+      return function() {
+        const context = this;
+        const args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          func.apply(context, args);
+        }, wait);
+      };
+    }
+
+    // 主要应用逻辑
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM 元素
+      const searchInput = document.getElementById('search-input');
+      const searchButton = document.getElementById('search-button');
+      const refreshButton = document.getElementById('refresh-button');
+      const fontList = document.getElementById('font-list');
+      
+      // 字体列表 - 包含字重信息和下载链接
+      const fonts = [
+        { 
+          name: 'Noto Sans SC', 
+          displayName: '思源黑体',
+          type: '无衬线字体', 
+          provider: 'Google Fonts',
+          url: 'https://fonts.google.com/noto/specimen/Noto+Sans+SC',
+          downloadUrl: './fonts/NotoSansSC-Regular.otf', // 替换为实际字体文件路径
+          weights: [100, 300, 400, 500, 700, 900],
+          defaultWeight: 400
+        },
+        { 
+          name: 'Noto Serif SC', 
+          displayName: '思源宋体',
+          type: '衬线字体', 
+          provider: 'Google Fonts',
+          url: 'https://fonts.google.com/noto/specimen/Noto+Serif+SC',
+          downloadUrl: './fonts/NotoSerifSC-Regular.otf', // 替换为实际字体文件路径
+          weights: [200, 300, 400, 500, 600, 700, 900],
+          defaultWeight: 400
+        },
+        { 
+          name: 'ZCOOL KuaiLe', 
+          displayName: '站酷快乐体',
+          type: '创意字体', 
+          provider: 'Google Fonts',
+          url: 'https://fonts.google.com/specimen/ZCOOL+KuaiLe',
+          downloadUrl: './fonts/ZCOOLKuaiLe-Regular.ttf', // 替换为实际字体文件路径
+          weights: [400],
+          defaultWeight: 400
+        },
+        { 
+          name: 'ZCOOL QingKe HuangYou', 
+          displayName: '站酷庆科黄油体',
+          type: '创意字体', 
+          provider: 'Google Fonts',
+          url: 'https://fonts.google.com/specimen/ZCOOL+QingKe+HuangYou',
+          downloadUrl: './fonts/ZCOOLQingKeHuangYou-Regular.ttf', // 替换为实际字体文件路径
+          weights: [400],
+          defaultWeight: 400
+        },
+        { 
+          name: 'ZCOOL XiaoWei', 
+          displayName: '站酷小薇体',
+          type: '创意字体', 
+          provider: 'Google Fonts',
+          url: 'https://fonts.google.com/specimen/ZCOOL+XiaoWei',
+          downloadUrl: './fonts/ZCOOLXiaoWei-Regular.ttf', // 替换为实际字体文件路径
+          weights: [400],
+          defaultWeight: 400
+        }
+      ];
+      
+      // 创建字体预览卡片
+      function createFontCard(font, sampleText, index) {
+        const card = document.createElement('div');
+        card.className = 'font-card';
+        
+        const header = document.createElement('div');
+        header.className = 'font-header';
+        
+        const nameContainer = document.createElement('div');
+        nameContainer.style.display = 'flex';
+        nameContainer.style.alignItems = 'center';
+        
+        const nameElement = document.createElement('span');
+        nameElement.className = 'font-name';
+        nameElement.textContent = font.displayName;
+        
+        const typeElement = document.createElement('span');
+        typeElement.className = 'font-type';
+        typeElement.textContent = font.type;
+        
+        nameContainer.appendChild(nameElement);
+        nameContainer.appendChild(typeElement);
+        
+        const sourceInfo = document.createElement('span');
+        sourceInfo.style.fontSize = '12px';
+        sourceInfo.style.color = '#999';
+        sourceInfo.textContent = `来源: ${font.provider}`;
+        
+        header.appendChild(nameContainer);
+        header.appendChild(sourceInfo);
+        
+        // 字重选择器 (仅当有多个字重时显示)
+        const weightSelector = document.createElement('div');
+        weightSelector.className = 'font-weight-selector';
+        
+        // 只有当字体有多个字重时才显示字重选择器
+        if (font.weights && font.weights.length > 1) {
+          font.weights.forEach(weight => {
+            const weightOption = document.createElement('div');
+            weightOption.className = 'weight-option';
+            if (weight === font.defaultWeight) {
+              weightOption.classList.add('active');
+            }
+            weightOption.textContent = getWeightName(weight);
+            weightOption.dataset.weight = weight;
+            
+            weightOption.addEventListener('click', function() {
+              // 移除所有选项的活动状态
+              weightSelector.querySelectorAll('.weight-option').forEach(opt => {
+                opt.classList.remove('active');
+              });
+              // 添加当前选项的活动状态
+              this.classList.add('active');
+              
+              // 更新预览的字重
+              const previewElement = card.querySelector('.font-preview');
+              previewElement.style.fontWeight = this.dataset.weight;
+            });
+            
+            weightSelector.appendChild(weightOption);
+          });
+        }
+        
+        const preview = document.createElement('div');
+        preview.className = 'font-preview';
+        preview.style.fontFamily = `"${font.name}", sans-serif`;
+        preview.style.fontSize = '32px';
+        preview.style.fontWeight = font.defaultWeight;
+        preview.textContent = sampleText || '输入预览文字';
+        
+        const actions = document.createElement('div');
+        actions.className = 'font-header';
+        actions.style.justifyContent = 'flex-end';
+        
+        const downloadButton = document.createElement('a');
+        downloadButton.className = 'download-button';
+        downloadButton.textContent = '下载';
+        downloadButton.href = font.downloadUrl;
+        downloadButton.setAttribute('download', '');
+        downloadButton.addEventListener('click', function(e) {
+          // 检查文件是否存在
+          const xhr = new XMLHttpRequest();
+          xhr.open('HEAD', font.downloadUrl, false);
+          try {
+            xhr.send();
+            if (xhr.status >= 400) {
+              e.preventDefault();
+              alert('字体文件暂不可用，请稍后再试');
+            }
+          } catch (error) {
+            e.preventDefault();
+            alert('下载失败，请检查网络连接');
+          }
+        });
+        
+        actions.appendChild(downloadButton);
+        
+        card.appendChild(header);
+        
+        // 只有当字体有多个字重时才添加字重选择器
+        if (font.weights && font.weights.length > 1) {
+          card.appendChild(weightSelector);
+        }
+        
+        card.appendChild(preview);
+        card.appendChild(actions);
+        
+        return { element: card, index: index };
+      }
+      
+      // 获取字重名称
+      function getWeightName(weight) {
+        const weightNames = {
+          100: '极细',
+          200: '特细',
+          300: '细体',
+          400: '常规',
+          500: '中等',
+          600: '半粗',
+          700: '粗体',
+          800: '特粗',
+          900: '黑体'
+        };
+        return weightNames[weight] || weight;
+      }
+      
+      // 加载所有字体卡片
+      function loadFonts() {
+        const text = searchInput.value;
+        fontList.innerHTML = '';
+        
+        fonts.forEach((font, index) => {
+          const card = createFontCard(font, text, index);
+          fontList.appendChild(card.element);
+        });
+      }
+      
+      // 更新所有预览
+      function updatePreviews() {
+        const text = searchInput.value;
+        
+        // 更新所有字体预览区域
+        const previews = document.querySelectorAll('.font-preview');
+        previews.forEach(preview => {
+          preview.textContent = text;
+        });
+      }
+      
+      // 简繁转换功能
+      function toggleTraditionalChinese() {
+        const text = searchInput.value;
+        // 这里只是一个简单的示例，实际的简繁转换需要更复杂的映射表
+        // 这里只转换几个常见字符作为演示
+        const simplifiedToTraditional = {
+          '国': '國', '华': '華', '语': '語', '为': '為', '中': '中',
+          '简': '簡', '体': '體', '繁': '繁', '字': '字', '预': '預',
+          '览': '覽', '下': '下', '载': '載', '天': '天', '地': '地'
+        };
+        
+        const traditionalToSimplified = {};
+        for (const [s, t] of Object.entries(simplifiedToTraditional)) {
+          traditionalToSimplified[t] = s;
+        }
+        
+        // 检测是简体还是繁体，然后转换
+        let isSimplified = true;
+        for (const char of text) {
+          if (simplifiedToTraditional[char]) {
+            isSimplified = true;
+            break;
+          }
+          if (traditionalToSimplified[char]) {
+            isSimplified = false;
+            break;
+          }
+        }
+        
+        let convertedText = '';
+        if (isSimplified) {
+          // 简体转繁体
+          for (const char of text) {
+            convertedText += simplifiedToTraditional[char] || char;
+          }
+        } else {
+          // 繁体转简体
+          for (const char of text) {
+            convertedText += traditionalToSimplified[char] || char;
+          }
+        }
+        
+        searchInput.value = convertedText;
+        updatePreviews();
+      }
+      
+      // 添加事件监听器
+      searchButton.addEventListener('click', updatePreviews);
+      refreshButton.addEventListener('click', toggleTraditionalChinese);
+      
+      // 使用防抖函数处理输入
+      const debouncedUpdate = debounce(updatePreviews, 500);
+      searchInput.addEventListener('input', debouncedUpdate);
+      
+      // 初始加载
+      loadFonts();
+    });
+  </script>
+</body>
+</html> 
